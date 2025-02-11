@@ -84,6 +84,7 @@ RUN chmod 755 /var/www
 USER www-data
 
 RUN composer update && composer dump-autoload
+RUN cp .env.exemple .env
 RUN php artisan key:generate && php artisan storage:link
 
 
