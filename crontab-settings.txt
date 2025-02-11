@@ -1,0 +1,2 @@
+# You can use this settings with unix OS for start schedule command every our
+* */1 * * * docker run --rm $(docker images side_build-app -q) php artisan schedule:run >> /dev/null

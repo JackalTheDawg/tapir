@@ -1,0 +1,84 @@
+services:
+  app:
+    build: ./side
+    container_name: app
+    env_file:
+      - .env
+    restart: unless-stopped
+    working_dir: /var/www/app
+    depends_on:
+      - test-db
+    volumes:
+      - app-data:/var/www/app
+    networks:
+      - web
+
+  migrations:
+    build: ./side
+    container_name: commands
+    env_file:
+    - .env
+    depends_on:
+      test-db:
+        condition: service_healthy
+        restart: false
+    links:
+      - app
+    volumes:
+      - app-data:/var/www/app
+    command:
+        bash -c "
+        php artisan config:cache &&
+        php artisan migrate &&
+        php artisan app:export-data && 
+        php artisan orchid:admin admin admin@admin.com password
+        "
+    networks:
+      - web
+  
+  test-db:
+    image: mysql:8.0
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -uroot -p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    restart: unless-stopped
+    container_name: test-db
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+    volumes:
+        # - /home/user/db/mysql/data:/var/lib/mysql
+        - test-db:/data
+    networks:
+      - web
+
+  nginx:
+    image: nginx:1.26.2-alpine3.20
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - 8000:8000
+    volumes:
+      - ./default.conf:/etc/nginx/conf.d/default.conf
+      - app-data:/var/www/app
+    networks:
+      - web
+
+volumes:
+  app-data:
+    name: app-data
+  test-db:
+    name: test-db
+
+
+networks:
+  web:
